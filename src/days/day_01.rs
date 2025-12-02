@@ -21,7 +21,7 @@ fn part_one(input: Box<dyn BufRead>) -> anyhow::Result<crate::puzzle::Answer> {
 }
 
 fn part_two(input: Box<dyn BufRead>) -> anyhow::Result<crate::puzzle::Answer> {
-    let ans = _part_two(input);
+    let ans = _part_two(input)?;
     Ok(Box::new(ans))
 }
 
@@ -43,7 +43,7 @@ fn _part_one(input: impl BufRead) -> anyhow::Result<u32> {
             _ => unreachable!("dir should be only L or R; actually is {}", dir),
         };
 
-        if pointer.0 == 0 {
+        if pointer == 0 {
             zero_ct += 1;
         }
     }
@@ -51,7 +51,7 @@ fn _part_one(input: impl BufRead) -> anyhow::Result<u32> {
     Ok(zero_ct)
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 struct SafeNum(u8);
 
 impl Default for SafeNum {
@@ -99,8 +99,50 @@ impl Sub for SafeNum {
     }
 }
 
-fn _part_two(_input: impl BufRead) -> i32 {
-    todo!("Actual logic implementation goes here")
+impl PartialEq<u8> for SafeNum {
+    fn eq(&self, other: &u8) -> bool {
+        &self.0 == other
+    }
+}
+
+fn _part_two(input: impl BufRead) -> anyhow::Result<u32> {
+    let mut pointer = SafeNum::default();
+    let mut zero_ct = 0;
+
+    for line in input.lines() {
+        let line = line?;
+        let (dir, mag) = line.split_at(1);
+
+        let mag = mag
+            .parse::<u32>()
+            .context("Could not parse valid magnitude int")?;
+
+        // Zero is passed one time for each full rotation
+        let div = mag / SafeNum::MAX as u32;
+        zero_ct += div;
+
+        let mag = SafeNum((mag % SafeNum::MAX as u32) as u8);
+
+        match dir {
+            "L" => {
+                let new_ptr = pointer - mag;
+                if (new_ptr > pointer && pointer != 0) || new_ptr == 0 {
+                    zero_ct += 1;
+                }
+                pointer = new_ptr;
+            }
+            "R" => {
+                let new_ptr = pointer + mag;
+                if (new_ptr < pointer && pointer != 0) || new_ptr == 0 {
+                    zero_ct += 1;
+                }
+                pointer = new_ptr;
+            }
+            _ => unreachable!("dir should be only L or R; actually is {}", dir),
+        };
+    }
+
+    Ok(zero_ct)
 }
 
 #[cfg(test)]
@@ -125,6 +167,14 @@ L82";
         let expected: u32 = 3;
         let input_reader = BufReader::new(TEST_INPUT.as_bytes());
         let actual = _part_one(input_reader).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part_two() {
+        let expected: u32 = 6;
+        let input_reader = BufReader::new(TEST_INPUT.as_bytes());
+        let actual = _part_two(input_reader).unwrap();
         assert_eq!(expected, actual);
     }
 }

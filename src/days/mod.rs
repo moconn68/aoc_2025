@@ -11,6 +11,7 @@ use std::{
 
 const INPUTS_DIR_NAME: &str = "inputs";
 const INPUT_FILE_NAME_PREFIX: &str = "day_";
+const INPUT_FILE_EXTENSION: &str = "txt";
 
 /// Get the input data for the provided day, in the form of a [`BufRead`].
 ///
@@ -23,6 +24,7 @@ pub fn get_input_for_day(day: u8) -> std::io::Result<impl BufRead> {
     input_path.push(root_dir);
     input_path.push(INPUTS_DIR_NAME);
     input_path.push(format!("{INPUT_FILE_NAME_PREFIX}{day:02}"));
+    input_path.set_extension(INPUT_FILE_EXTENSION);
 
     File::open(input_path).map(BufReader::new)
 }

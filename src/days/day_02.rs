@@ -1,6 +1,7 @@
 use std::io::BufRead;
 
 use anyhow::Context;
+use itertools::Itertools;
 
 use crate::puzzle::Puzzle;
 
@@ -18,8 +19,11 @@ fn part_one(input: Box<dyn BufRead>) -> anyhow::Result<crate::puzzle::Answer> {
     Ok(Box::new(ans))
 }
 
-fn part_two(_input: Box<dyn BufRead>) -> anyhow::Result<crate::puzzle::Answer> {
-    todo!()
+fn part_two(input: Box<dyn BufRead>) -> anyhow::Result<crate::puzzle::Answer> {
+    // This day's puzzle input is a single line
+    let input: String = input.lines().collect::<Result<_, _>>()?;
+    let ans = _part_two(&input)?;
+    Ok(Box::new(ans))
 }
 
 fn _part_one(input: &str) -> anyhow::Result<usize> {
@@ -50,6 +54,39 @@ fn _part_one(input: &str) -> anyhow::Result<usize> {
     Ok(invalid_sum)
 }
 
+fn _part_two(input: &str) -> anyhow::Result<usize> {
+    let mut invalid_sum = 0;
+
+    let ranges = input.split(',');
+    for range in ranges {
+        let (min, max) = range
+            .split_once('-')
+            .context("Malformed range, missing '-' separator")?;
+
+        let min: usize = min.parse()?;
+        let max: usize = max.parse()?;
+
+        for num in min..=max {
+            let num_str = num.to_string();
+            // Iterate through all possible pattern lengths for the number
+            let chunk_sizes = (1..=num_str.len() / 2)
+                // Omit those that don't divide the number into whole groups
+                .filter(|chunk_size| num_str.len() % chunk_size == 0);
+
+            for size in chunk_sizes {
+                let chunks = num_str.chars().chunks(size);
+                let mut chunks = chunks.into_iter().map(Vec::from_iter);
+                if chunks.all_equal() {
+                    invalid_sum += num;
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(invalid_sum)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,6 +97,13 @@ mod tests {
     fn test_part_one() {
         let expected = 1227775554;
         let actual = _part_one(INPUT).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part_two() {
+        let expected = 4174379265;
+        let actual = _part_two(INPUT).unwrap();
         assert_eq!(expected, actual);
     }
 }

@@ -1,5 +1,6 @@
 mod day_01;
 mod day_02;
+mod day_03;
 
 use crate::puzzle::Puzzle;
 
@@ -36,6 +37,7 @@ pub fn select_puzzle(day: u8) -> anyhow::Result<Puzzle> {
     Ok(match day {
         1 => day_01::get_puzzle(),
         2 => day_02::get_puzzle(),
+        3 => day_03::get_puzzle(),
         // TODO: add more implementations for each new day
         _ => anyhow::bail!("Day {day} is not yet completed!"),
     })

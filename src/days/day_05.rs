@@ -1,6 +1,8 @@
-use std::{collections::HashSet, io::BufRead, ops::RangeInclusive};
-
 use crate::puzzle::Puzzle;
+
+use std::{collections::VecDeque, io::BufRead, str::FromStr};
+
+use anyhow::Context;
 
 pub(crate) fn get_puzzle() -> crate::puzzle::Puzzle {
     Puzzle {
@@ -10,27 +12,44 @@ pub(crate) fn get_puzzle() -> crate::puzzle::Puzzle {
 }
 
 struct Input<I> {
-    ranges: HashSet<RangeInclusive<usize>>,
+    intervals: VecDeque<Interval>,
     ids: I,
+}
+
+struct Interval {
+    start: usize,
+    end: usize,
+}
+
+impl FromStr for Interval {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (start, end) = s
+            .split_once('-')
+            .context("Interval format should always be {start}-{end}")?;
+        let start: usize = start
+            .parse()
+            .context("Interval start should be valid usize")?;
+        let end: usize = end.parse().context("Interval end should be valid usize")?;
+
+        Ok(Self { start, end })
+    }
 }
 
 fn parse_input(raw: impl BufRead) -> Input<impl Iterator<Item = usize>> {
     let mut lines = raw.lines();
 
-    let mut ranges = HashSet::new();
-    while let range = lines
+    let mut intervals = VecDeque::new();
+    while let interval_raw = lines
         .next()
-        .expect("Input should have content for ranges")
-        .expect("Should be able to read valid line for range")
-        && !range.is_empty()
+        .expect("Input should have content for interval")
+        .expect("Should be able to read valid line for interval")
+        // Empty line denotes input's separation between intervals and IDs
+        && !interval_raw.is_empty()
     {
-        let (start, end) = range
-            .split_once('-')
-            .expect("Range format should always be {start}-{end}");
-        let start: usize = start.parse().expect("Range start should be valid usize");
-        let end: usize = end.parse().expect("Range end should be valid usize");
-
-        ranges.insert(start..=end);
+        let interval = interval_raw.parse().unwrap();
+        intervals.push_back(interval);
     }
 
     // The rest of the contents of the input is just the IDs
@@ -40,7 +59,7 @@ fn parse_input(raw: impl BufRead) -> Input<impl Iterator<Item = usize>> {
             .expect("Input ID line should contain only a single valid usize")
     });
 
-    Input { ranges, ids }
+    Input { intervals, ids }
 }
 
 fn part_one(input: Box<dyn BufRead>) -> anyhow::Result<crate::puzzle::Answer> {
@@ -53,8 +72,8 @@ fn _part_one<I: Iterator<Item = usize>>(input: Input<I>) -> usize {
     input
         .ids
         .filter(|id| {
-            for range in &input.ranges {
-                if range.contains(id) {
+            for interval in &input.intervals {
+                if (interval.start..=interval.end).contains(id) {
                     return true;
                 }
             }
@@ -63,8 +82,27 @@ fn _part_one<I: Iterator<Item = usize>>(input: Input<I>) -> usize {
         .count()
 }
 
-fn part_two(_input: impl BufRead) -> anyhow::Result<crate::puzzle::Answer> {
-    todo!()
+fn part_two(input: impl BufRead) -> anyhow::Result<crate::puzzle::Answer> {
+    let Input { intervals, .. } = parse_input(input);
+    Ok(Box::new(_part_two(intervals)))
+}
+
+fn _part_two(mut input: VecDeque<Interval>) -> usize {
+    // Merge overlapping intervals
+    input.make_contiguous().sort_by_key(|r| r.start);
+    let mut ret = vec![input.pop_front().unwrap()];
+    for cur in input {
+        let prev = ret.last_mut().unwrap();
+        if cur.start <= prev.end {
+            prev.end = std::cmp::max(prev.end, cur.end)
+        } else {
+            ret.push(cur);
+        }
+    }
+
+    ret.into_iter()
+        .map(|range| range.end - range.start + 1)
+        .sum()
 }
 
 #[cfg(test)]
@@ -88,6 +126,14 @@ mod tests {
         let expected = 3;
         let input = parse_input(INPUT.as_bytes());
         let actual = _part_one(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_part_two() {
+        let expected = 14;
+        let input = parse_input(INPUT.as_bytes());
+        let actual = _part_two(input.intervals);
         assert_eq!(expected, actual);
     }
 }
